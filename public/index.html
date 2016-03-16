@@ -11,8 +11,23 @@
     <button id="add_docker">Add Docker Machine</button>
 </div>
 
-<h6 id="target"></h6>
+<h6>
+    <span id="target"></span>
+</h6>
 
+<div>
+    <label>
+        proxy:<input type="radio" name="mode" value="proxy">
+    </label>
+    <label>
+        redirect:<input type="radio" name="mode" value="redirect">
+    </label>
+</div>
+
+<select id="protocol">
+    <option>http</option>
+    <option>https</option>
+</select>:
 <select id="dockers"></select>:
 <select id="apps"></select>
 <button id="set_target">Set Target</button>

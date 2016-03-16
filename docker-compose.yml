@@ -1,0 +1,6 @@
+web:
+ build: .
+# links:
+#  - redis
+#redis:
+# image: redis

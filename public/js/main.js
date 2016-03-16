@@ -22,17 +22,24 @@ $(function () {
           $("<optgroup>").attr("label", app.Image + ":" + app.Id.slice(0, 8)).appendTo("#apps")
           app.Ports.forEach(function (port) {
             if (port.PublicPort) {
-              $("<option>").text(' '+port.PrivatePort + "=>" + port.PublicPort).val(+port.PublicPort).appendTo("#apps")
+              $("<option>").text(' ' + port.PrivatePort + "=>" + port.PublicPort).val(+port.PublicPort).appendTo("#apps")
             }
           })
         }
       });
     })
-  })
+  });
+
+
   $("#set_target").click(function () {
+
+    if (!$("#apps").val()) {
+      alert("wait!");
+      return;
+    }
+
     var params = {
-      docker: $("#dockers").val(),
-      port: $("#apps").val()
+      target: $("#protocol").val() + "://" + $("#dockers :selected").text() + ":" + $("#apps").val(),
     }
     $.ajax({
       url: "/target",
@@ -42,5 +49,20 @@ $(function () {
         $("#target").load("/target")
       }
     })
+  })
+
+  $.getJSON("/mode", function (res) {
+    $("input[value=" + res + "]").attr('checked', '');
+  });
+
+  $("input[type=radio]").click(function () {
+    $.ajax({
+      url: "/mode",
+      data: {
+        mode: $(this).val()
+      },
+      method: "PUT"
+    })
+
   })
 })

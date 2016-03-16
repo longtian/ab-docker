@@ -5,33 +5,52 @@ var app = express();
 var config = require('rc')('ab-docker');
 var request = require('request');
 var url = require('url');
-var httpProxy = require('http-proxy');
 var http = require('http');
+var errorHandler = err=>console.error(err);
+var proxy = require('./proxyServer');
 
-var errorHandler = function (err) {
-  if (err) {
-    console.error(err);
-  }
+var MODES = {
+  PROXY: "proxy",
+  REDIRECT: "redirect"
 }
-
+/**
+ * static
+ */
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.static(path.join(__dirname, 'node_modules', 'bootstrap', 'dist')));
 app.use(express.static(path.join(__dirname, 'node_modules', 'jquery', 'dist')));
 
+/**
+ * middlewares
+ */
 app.use(bodyParser.json())
 app.use(bodyParser.urlencoded({ extended: false }))
 
 var dockers = [];
+var target = null;
+var mode = "proxy";
 
 if (config.DOCKER) {
-  dockers.push(url.parse(config.DOCKER))
+  // 读取默认配置
+  dockers = dockers.concat(config.DOCKER.split(",").map(url.parse));
+
+  console.log('default docker hosts:');
+  console.log(dockers);
+
+}
+
+if (config.MODE) {
+  mode = config.MODE;
 }
 
 app.post('/docker', function (req, res) {
   if (req.body.href && req.body.href.length) {
     dockers.push(url.parse(req.body.href));
+    res.end('ok');
+  } else {
+    res.statusCode = 400;
+    res.end('wrong format');
   }
-  res.end('ok');
 });
 
 app.get('/dockers', function (req, res) {
@@ -39,19 +58,39 @@ app.get('/dockers', function (req, res) {
 });
 
 app.get('/dockers/:id', function (req, res) {
+  if (!req.params.id) {
+    res.statusCode = 400;
+    return res.end("id is not provided");
+  }
   var href = dockers[req.params.id].href;
   var r = request.get(`${href}/containers/json`);
   r.on('error', errorHandler);
   r.pipe(res);
 })
 
-var target = null;
-var proxy = httpProxy.createServer({});
-proxy.on('error', errorHandler);
 
-proxy.on('proxyReq', function (proxyReq, req, res, options) {
-  proxyReq.setHeader('X-Special-Proxy-Header', 'foobar');
+app.put('/target', function (req, res) {
+  if (req.body.target) {
+    target = req.body.target
+  }
+  res.end();
 });
+
+app.get('/target', function (req, res) {
+  res.json(target);
+});
+
+app.put('/mode', function (req, res) {
+  if (req.body.mode) {
+    mode = req.body.mode
+  }
+  res.end();
+});
+
+app.get('/mode', function (req, res) {
+  res.json(mode);
+});
+
 
 var server = http.createServer(function (req, res) {
   if (!target) {
@@ -59,32 +98,16 @@ var server = http.createServer(function (req, res) {
     return res.end('proxy not ready,tell Lao Wang please.');
   }
 
-  if (config.REDIRECT) {
-
-    console.log(req.url);
-
+  if (mode == MODES.REDIRECT) {
     res.writeHead(302, { 'Location': target + req.url });
     res.end();
-  } else {
+  } else if (mode == MODES.PROXY) {
     proxy.web(req, res, { target: target });
-  }
-});
-
-app.put('/target', function (req, res) {
-  var docker = dockers[req.body.docker];
-  if (docker) {
-    target = 'http://' + docker.hostname + ":" + req.body.port;
-    return res.json(target);
   } else {
-    res.statusCode = 404;
-    res.end();
+    res.statusCode = 400;
+    return res.end('mode not defined,tell Lao Wang please.');
   }
 });
-
-app.get('/target', function (req, res) {
-  res.json((config.REDIRECT ? "redirect" : "proxy") + " : " + target);
-});
-
 server.listen(config.PORT);
 
 module.exports = app;
