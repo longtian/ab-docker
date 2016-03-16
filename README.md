@@ -4,10 +4,11 @@ ab-docker
 
 ### 配置
 
-新建配置文件 `~/.ab-dockerrc`
+新建配置文件 `.ab-dockerrc`
 
 ```
-DOCKER=""
+PORT
+ADMIN_PORT
 ```
 
 ### 安装

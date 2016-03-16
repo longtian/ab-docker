@@ -20,9 +20,11 @@ app.get('/docker_machines.json', function (req, res) {
 
 });
 
-var dockers = [
-  url.parse(config.DOCKER)
-];
+var dockers = [];
+
+if (config.DOCKER) {
+  dockers.push(url.parse(config.DOCKER))
+}
 
 app.post('/docker', function (req, res) {
   if (req.body.href && req.body.href.length) {
