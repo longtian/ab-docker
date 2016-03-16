@@ -7,6 +7,8 @@ var request = require('request');
 var url = require('url');
 var httpProxy = require('http-proxy');
 var http = require('http');
+
+
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.static(path.join(__dirname, 'node_modules', 'bootstrap', 'dist')));
 app.use(express.static(path.join(__dirname, 'node_modules', 'jquery', 'dist')));
@@ -59,6 +61,6 @@ app.get('/target', function (req, res) {
   res.json(target);
 })
 
-server.listen(3002);
+server.listen(config.PORT);
 
 module.exports = app;
