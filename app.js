@@ -8,6 +8,11 @@ var url = require('url');
 var httpProxy = require('http-proxy');
 var http = require('http');
 
+var errorHandler = function (err) {
+  if (err) {
+    console.error(err);
+  }
+}
 
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.static(path.join(__dirname, 'node_modules', 'bootstrap', 'dist')));
@@ -15,10 +20,6 @@ app.use(express.static(path.join(__dirname, 'node_modules', 'jquery', 'dist')));
 
 app.use(bodyParser.json())
 app.use(bodyParser.urlencoded({ extended: false }))
-
-app.get('/docker_machines.json', function (req, res) {
-
-});
 
 var dockers = [];
 
@@ -39,19 +40,40 @@ app.get('/dockers', function (req, res) {
 
 app.get('/dockers/:id', function (req, res) {
   var href = dockers[req.params.id].href;
-  request.get(`${href}/containers/json`).pipe(res)
+  var r = request.get(`${href}/containers/json`);
+  r.on('error', errorHandler);
+  r.pipe(res);
 })
-
 
 var target = null;
 var proxy = httpProxy.createServer({});
-var server = http.createServer(function (req, res) {
-  proxy.web(req, res, { target: "http://" + target });
+proxy.on('error', errorHandler);
+
+proxy.on('proxyReq', function (proxyReq, req, res, options) {
+  proxyReq.setHeader('X-Special-Proxy-Header', 'foobar');
 });
+
+var server = http.createServer(function (req, res) {
+  if (!target) {
+    res.statusCode = 400;
+    return res.end('proxy not ready,tell Lao Wang please.');
+  }
+
+  if (config.REDIRECT) {
+
+    console.log(req.url);
+
+    res.writeHead(302, { 'Location': target + req.url });
+    res.end();
+  } else {
+    proxy.web(req, res, { target: target });
+  }
+});
+
 app.put('/target', function (req, res) {
   var docker = dockers[req.body.docker];
   if (docker) {
-    target = docker.hostname + ":" + req.body.port;
+    target = 'http://' + docker.hostname + ":" + req.body.port;
     return res.json(target);
   } else {
     res.statusCode = 404;
@@ -60,8 +82,8 @@ app.put('/target', function (req, res) {
 });
 
 app.get('/target', function (req, res) {
-  res.json(target);
-})
+  res.json((config.REDIRECT ? "redirect" : "proxy") + " : " + target);
+});
 
 server.listen(config.PORT);
 
